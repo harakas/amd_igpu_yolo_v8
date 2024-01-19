@@ -1,0 +1,27 @@
+#! /bin/bash
+#
+# Based on
+#   https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/3rd-party/pytorch-install.html#using-docker-with-pytorch-pre-installed
+#
+# The following environment variables are necessary for ROCM to work properly:
+#   -e HSA_ENABLE_SDMA=0
+#       So that ROCM would work at all due to missing pce atomics
+#   -e HSA_OVERRIDE_GFX_VERSION=9.0.0
+#       ROCM/Tensile, etc do no work with gfx90c due to missing profile files
+#       I have gfx90c so I override the gfx version for the libraries to work properly
+#       See https://github.com/ROCm/ROCm/issues/1743#issuecomment-1149902796
+#
+# Also you need the following groups for ROCM to run properly (as we do not run as root):
+#   --group-add video --group-add ssh --group-add render
+#
+
+docker run -it --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
+  --device=/dev/kfd --device=/dev/dri \
+  -e HSA_ENABLE_SDMA=0 \
+  -e HSA_OVERRIDE_GFX_VERSION=9.0.0 \
+  --group-add video --group-add ssh --group-add render \
+  --ipc=host --shm-size 8G \
+  -v $(pwd):/opt/cwd \
+  --user $(id -u):$(id -g) \
+  rocm-pytorch $@
+
