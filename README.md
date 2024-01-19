@@ -1,11 +1,16 @@
-# ROCM pytorch yolov5 example
+# ROCm pytorch yolov5 example
 A simple example on how to run the [ultralytics/yolov5](https://pytorch.org/hub/ultralytics_yolov5/) inference model on the AMD ROCm platform with pytorch.
 
-I have an [ASRock 4x4 BOX-5400U mini computer](https://www.asrockind.com/en-gb/4X4%20BOX-5400U) with integrated AMD graphics. It has a GPU that can run neural networks/pytorch. This here is an example/description on how to get it working.
+I have an [ASRock 4x4 BOX-5400U mini computer](https://www.asrockind.com/en-gb/4X4%20BOX-5400U) with integrated AMD graphics. It has a GPU that is capable of running neural networks/pytorch. This here is an example/description on how to get it working.
 
-## Description of environment variables specified in the [rocm_pytorch](rocm_pytorch) script
+Here we:
+ * create a Docker image named `rocm-pytorch` that contains the ROCm and pytorch software environment
+ * modify command line script `rocm_python` that runs this Docker image inline as a `python` wrapper
+ * use this script to run the yolo5.py example script for inference on [wolf.jpg](wolf.jpg)
 
-AMD mini computers/laptops with integrated GPU-s do not run out of the box but need special environment variables to work properly.
+## Description of environment variables specified in the [rocm_python](rocm_python) script
+
+AMD mini computers/laptops with integrated GPUs do not run out of the box but need special environment variables to work properly.
 
 ### `HSA_ENABLE_SDMA=0`
 
@@ -13,9 +18,9 @@ Without this the GPU memory transfers will silently hang/fail. Based on various 
 
 ### `HSA_OVERRIDE_GFX_VERSION=9.0.0`
 
-ROCm comes with precompiled/preoptimized kernel files and settings for some of their GPUs, but not for the one I have (gfx90c). To get things working we need to fake the version so that we load the more generic (but less optimized) versions instead. It seems to work, at least for me and my GPU.
+ROCm comes with precompiled/preoptimized kernel files and settings for some of their GPUs, but not for the one I have (gfx90c). To get this GPU working we need to fake the GPU version so that ROCm loads the more generic (but less optimized) kernels and settings instead. It seems to work, at least for my specific GPU (gfx90c).
 
-You need to either delete this or specify a version suitable for your GPU. You can find your version by running `rocminfo`:
+You need to either delete this if yours is already supported or specify a version suitable for your GPU. You can find your current GPU name by running `rocminfo`:
 
 ```
 $ rocminfo
@@ -48,7 +53,7 @@ As input file we use an image of a wolf:
 
 ![wolf pup](wolf.jpg)
 
-We run the `yolo5.py` script that runs inference on this image.
+We run the [yolo5.py](yolo5.py) script that runs inference on this image.
 
 ```
 $ ./rocm_python yolo5.py
@@ -77,3 +82,4 @@ If you see what I see, it works. An illustrated image with detections will be ge
 
 ![inference result](runs/detect/exp/wolf.jpg)
 
+I hope this example was of help to you. Good luck!
