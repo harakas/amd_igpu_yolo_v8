@@ -1,19 +1,19 @@
-# rocm_pytorch_yolov5_example
-A simple example on how to use the ultralytics/yolov5 inference on the AMD ROCm platform with pytorch.
+# ROCM pytorch yolov5 example
+A simple example on how to run the [ultralytics/yolov5](https://pytorch.org/hub/ultralytics_yolov5/) inference model on the AMD ROCm platform with pytorch.
 
-I have an [ASRock 4x4 BOX-5400U mini computer](https://www.asrockind.com/en-gb/4X4%20BOX-5400U) with integrated AMD graphics. It has a GPU that can run neural networks/pytorch. This here is a working example how to get it working.
+I have an [ASRock 4x4 BOX-5400U mini computer](https://www.asrockind.com/en-gb/4X4%20BOX-5400U) with integrated AMD graphics. It has a GPU that can run neural networks/pytorch. This here is an example/description on how to get it working.
 
-## Description of environment variables specified in the `rocm-pytorch` script
+## Description of environment variables specified in the [rocm-pytorch](rocm-pytorch) script
 
-AMD mini computers/laptops with integrated GPU-s do not run out of the box but need special environment variables:
+AMD mini computers/laptops with integrated GPU-s do not run out of the box but need special environment variables to work properly.
 
 ### `HSA_ENABLE_SDMA=0`
 
-Without this the GPU memory transfers will hang/fail. Based on various internet forums it is because currently no consumer AMD motherboards with integrated GPUs support PCIe atomics which cause the DMA memory transfers to fail. Why did AMD make the default setting for consumer level GPU-s to silently hang/crash? You need to ask them.
+Without this the GPU memory transfers will silently hang/fail. Based on various internet forums it is because at this moment no consumer AMD motherboards with integrated GPUs support PCIe atomics. They are apparently needed for DMA memory transfers between the GPU and CPU. Why did AMD make the default setting for consumer level GPU-s to silently hang/crash? You need to ask them.
 
 ### `HSA_OVERRIDE_GFX_VERSION=9.0.0`
 
-ROCm comes with precompiled/preoptimized kernel files for some of their architectures, but not for the one I have (gfx90c). To get things working we need to fake the version so that we load the more generic (but less optimized) versions instead.
+ROCm comes with precompiled/preoptimized kernel files and settings for some of their GPUs, but not for the one I have (gfx90c). To get things working we need to fake the version so that we load the more generic (but less optimized) versions instead. It seems to work, at least for me and my GPU.
 
 You need to either delete this or specify a version suitable for your GPU. You can find your version by running `rocminfo`:
 
@@ -29,17 +29,17 @@ Agent 2
 ...
 ```
 
-See https://github.com/ROCm/ROCm/issues/1743#issuecomment-1149902796 for more examples.
+See https://github.com/ROCm/ROCm/issues/1743#issuecomment-1149902796 for more examples for other GPUs.
 
-## Build Docker image
+## Build a Docker image
 
-Build a Docker image named `rocm-pytorch` by running:
+As installing all the software is quite involved and there are many versions that conflict we resort to using containers instead. We build a Docker image named `rocm-pytorch` by running:
 
 ```
-$docker build -t rocm-pytorch .
-```.
+$ docker build -t rocm-pytorch .
+```
 
-See `Dockerfile` for details. It is built on top of the ROCm provided pytorch image.
+See [Dockerfile](Dockerfile) for details. It is built on top of the prebuilt AMD/ROCm provided pytorch Docker image.
 
 
 ## Run the example script:
@@ -73,7 +73,7 @@ Saved 1 image to runs/detect/exp
 Benchmark: inference min 0.019536256790161133, median 0.020015954971313477
 ```
 
-If you see what I see, it works. An illustrated image with detections will be generated under ./runs/detect/:
+If you see what I see, it works. An illustrated image with detections will be generated under [./runs/detect/](./runs/detect/):
 
 ![inference result](runs/detect/exp/wolf.jpg)
 
