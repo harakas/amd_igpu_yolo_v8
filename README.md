@@ -3,7 +3,7 @@ A simple example on how to run the [ultralytics/yolov5](https://pytorch.org/hub/
 
 I have an [ASRock 4x4 BOX-5400U mini computer](https://www.asrockind.com/en-gb/4X4%20BOX-5400U) with integrated AMD graphics. It has a GPU that can run neural networks/pytorch. This here is an example/description on how to get it working.
 
-## Description of environment variables specified in the [rocm-pytorch](rocm-pytorch) script
+## Description of environment variables specified in the [rocm_pytorch](rocm_pytorch) script
 
 AMD mini computers/laptops with integrated GPU-s do not run out of the box but need special environment variables to work properly.
 
