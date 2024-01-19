@@ -82,3 +82,28 @@ If you see what I see, it works. An illustrated image with detections will be ge
 ![inference result](runs/detect/exp/wolf.jpg)
 
 I hope this example was of help to you. Good luck!
+
+## Running ultralytics/yolov8
+
+Ultralytics also offers pretrained yolov8 models but these have to be downloaded explicitly from their site and you need to use their API. See [yolo8.py](yolo8.py) for details. For a pretrained model using Google Open Image V7:
+
+```
+$ wget https://github.com/ultralytics/assets/releases/download/v8.1.0/yolov8n-oiv7.pt
+$ ./rocm_python
+Python 3.9.18 (main, Sep 11 2023, 13:41:44)
+[GCC 11.2.0] :: Anaconda, Inc. on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> from ultralytics import YOLO
+>>> model = YOLO('yolov8n-oiv7.pt')
+>>> from PIL import Image
+>>> model.predict(Image.open('wolf.jpg'), save=True)
+
+0: 448x640 1 Dog, 1 Plant, 24.1ms
+Speed: 2.9ms preprocess, 24.1ms inference, 1.5ms postprocess per image at shape (1, 3, 448, 640)
+Results saved to runs/detect/predict
+```
+
+This works fine on my hardware (gfx90c):
+
+![yolov8 inference result](runs/detect/predict/wolf.jpg)
+
