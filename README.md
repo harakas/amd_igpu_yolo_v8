@@ -8,6 +8,16 @@ Here we:
  * modify command line script `rocm_python` that runs this Docker image inline as a `python` wrapper
  * use this script to run the yolo5.py example script for inference on [wolf.jpg](wolf.jpg)
 
+## Build a Docker image
+
+As installing all the software is quite involved and there are many versions that conflict we resort to using containers instead. We build a Docker image named `rocm-pytorch` by running:
+
+```
+$ docker build -t rocm-pytorch .
+```
+
+See [Dockerfile](Dockerfile) for details. It is built on top of the prebuilt AMD/ROCm provided pytorch Docker image.
+
 ## Description of environment variables specified in the [rocm_python](rocm_python) script
 
 AMD mini computers/laptops with integrated GPUs do not run out of the box but need special environment variables to work properly.
@@ -35,17 +45,6 @@ Agent 2
 ```
 
 See https://github.com/ROCm/ROCm/issues/1743#issuecomment-1149902796 for more examples for other GPUs.
-
-## Build a Docker image
-
-As installing all the software is quite involved and there are many versions that conflict we resort to using containers instead. We build a Docker image named `rocm-pytorch` by running:
-
-```
-$ docker build -t rocm-pytorch .
-```
-
-See [Dockerfile](Dockerfile) for details. It is built on top of the prebuilt AMD/ROCm provided pytorch Docker image.
-
 
 ## Run the example script:
 
