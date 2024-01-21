@@ -1,7 +1,7 @@
-# ROCm pytorch yolov5 example
+# ROCm pytorch yolov5 example for AMD integrated GPU
 A simple example on how to run the [ultralytics/yolov5](https://pytorch.org/hub/ultralytics_yolov5/) inference model on the AMD ROCm platform with pytorch.
 
-I have an [ASRock 4x4 BOX-5400U mini computer](https://www.asrockind.com/en-gb/4X4%20BOX-5400U) with integrated AMD graphics. It has a GPU that is capable of running neural networks/pytorch. This here is an example/description on how to get it working.
+I have an [ASRock 4x4 BOX-5400U](https://www.asrockind.com/en-gb/4X4%20BOX-5400U) mini computer with integrated AMD graphics. The integrated GPU is actually capable of running neural networks/pytorch. This here is an example/description on how to get it working.
 
 Here we:
  * create a Docker image named `rocm-pytorch` that contains the ROCm and pytorch software environment
