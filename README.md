@@ -224,4 +224,6 @@ A more detailed code doing this is in [amd.py](amd.py). It also draws the boxes 
 
 ![output.jpg](output.jpg)
 
+The performance I get on the `AMD Ryzen 3 5400U with Radeon Graphics` for yolov8n is about 50fps (0.02 seconds per image).
+
 I hope this example was of help to you. Good luck!
