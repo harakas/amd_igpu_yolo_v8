@@ -1,4 +1,4 @@
-# Running YOLO inference on AMD integrated GPUs
+# Running YOLO v8 inference on AMD integrated GPUs
 
 This is a simple example on how to run the [ultralytics/yolov8](https://pytorch.org/hub/ultralytics_yolov8/) and other inference models on the AMD ROCm platform with pytorch and also natively with MIGraphiX.
 
@@ -9,7 +9,7 @@ Here we:
  * modify command line script `rocm_python` that runs this Docker image inline as a `python` wrapper
  * use this script to run the yolo5.py example script for inference on [wolf.jpg](wolf.jpg)
  * run the same image on the ultralytics/yolov8 trained using the Google Open Image V7 archive
- * export the yolov8n model from torch into AMD MIGrpahiX binary format and evaluate it
+ * export the yolov8n model from torch into AMD MIGraphiX binary format and evaluate it
 
 ## Build a Docker image
 
