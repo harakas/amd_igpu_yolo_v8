@@ -65,7 +65,7 @@ class_ids = []
 model_box_count = npr.shape[2]
 model_class_count = npr.shape[1] - 4
 
-if True: # fast numpy
+if True: # fast numpy vectorized
   probs = npr[0, 4:, :]
   all_ids = np.argmax(probs, axis=0)
   all_confidences = np.take(probs.T, model_class_count*np.arange(0, model_box_count) + all_ids)
@@ -73,7 +73,8 @@ if True: # fast numpy
   mask = (all_confidences > 0.25)
   class_ids = all_ids[mask]
   confidences = all_confidences[mask]
-  boxes = [(int(scale_x * (cx - w / 2)), int(scale_y * (cy - h / 2)), w, h) for cx, cy, w, h in all_boxes[mask]]
+  cx, cy, w, h = all_boxes[mask].T
+  boxes = np.stack((scale_x * (cx - w / 2), scale_y * (cy - h / 2), scale_x * w, scale_y * h), axis=1)
 else: # slow, but readable
   for i in range(0, model_box_count):
     row = npr[0, :, i]
