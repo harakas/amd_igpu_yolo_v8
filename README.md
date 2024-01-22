@@ -86,8 +86,6 @@ If you see what I see, it works. An illustrated image with detections will be ge
 
 ![inference result](runs/detect/exp/wolf.jpg)
 
-I hope this example was of help to you. Good luck!
-
 ## Running ultralytics/yolov8
 
 Ultralytics also offers pretrained yolov8 models but these have to be downloaded explicitly from their site and you need to use their API. See [yolo8.py](yolo8.py) for details. For a pretrained model using Google Open Image V7:
@@ -226,3 +224,4 @@ A more detailed code doing this is in [amd.py](amd.py). It also draws the boxes 
 
 ![output.jpg](output.jpg)
 
+I hope this example was of help to you. Good luck!
