@@ -1,6 +1,6 @@
 # Running YOLO inference on AMD integrated GPUs
 
-This is a simple example on how to run the [ultralytics/yolov5](https://pytorch.org/hub/ultralytics_yolov5/) and other inference models on the AMD ROCm platform with pytorch and also natively with MIGraphiX.
+This is a simple example on how to run the [ultralytics/yolov8](https://pytorch.org/hub/ultralytics_yolov8/) and other inference models on the AMD ROCm platform with pytorch and also natively with MIGraphiX.
 
 I have an [ASRock 4x4 BOX-5400U](https://www.asrockind.com/en-gb/4X4%20BOX-5400U) mini computer with integrated AMD graphics. The integrated GPU is actually capable of running neural networks/pytorch. This here is an example/description on how to get it working.
 
@@ -9,7 +9,7 @@ Here we:
  * modify command line script `rocm_python` that runs this Docker image inline as a `python` wrapper
  * use this script to run the yolo5.py example script for inference on [wolf.jpg](wolf.jpg)
  * run the same image on the ultralytics/yolov8 trained using the Google Open Image V7 archive
- * export the model from torch into AMD migraphics format
+ * export the yolov8n model from torch into AMD MIGrpahiX binary format and evaluate it
 
 ## Build a Docker image
 
@@ -112,9 +112,9 @@ This works fine on my hardware (gfx90c):
 
 ![yolov8 inference result](runs/detect/predict/wolf.jpg)
 
-## Deplying for production using MIGraphX
+## Deploying for production using MIGraphX
 
-I want to get rid of depencies on pytorch and the ultralytics API-s. Basically I just want to use the model for inference, e.g. get a version suitable for deployment. For this we want to export the model into an interchange format (ONNX) and from there into a MIGraphX binary format:
+We want to get rid of depencies on pytorch and the ultralytics API-s. Basically we just want to use the model for inference, e.g. get a version suitable for deployment. We achieve this by first exporting the model into an interchange format (ONNX) and from there into the MIGraphX binary format:
 
 ```
 $ wget https://github.com/ultralytics/assets/releases/download/v8.1.0/yolov8n.pt
@@ -145,7 +145,7 @@ Visualize:       https://netron.app
 >>>
 ```
 
-We now have yolov8n.onnx. This can now be turned into a MIGraphX file:
+We now have `yolov8n.onnx`. This can now be turned into a MIGraphX file:
 
 ```
 $ ./rocm_python -c 'import os; os.system("/opt/rocm/bin/migraphx-driver compile ./yolov8n.onnx --optimize --gpu --enable-offload-copy --binary -o yolov8n.mxr")'
@@ -224,5 +224,5 @@ The result of this is:
 
 A more detailed code doing this is in [amd.py](amd.py). It also draws the boxes on images, yielding our wolf pup:
 
-[output.jpg](output.jpg)
+![output.jpg](output.jpg)
 
