@@ -114,7 +114,7 @@ This works fine on my hardware (gfx90c):
 
 ## Deploying for production using MIGraphX
 
-We want to get rid of depencies on pytorch and the ultralytics API-s. Basically we just want to use the model for inference, e.g. get a version suitable for deployment. We achieve this by first exporting the model into an interchange format (ONNX) and from there into the MIGraphX binary format:
+We want to get rid of dependencies on pytorch and the ultralytics API-s. Basically we just want to use the model for inference, e.g. get a version suitable for deployment. We achieve this by first exporting the model into an interchange format (ONNX) and from there into the MIGraphX binary format:
 
 ```
 $ wget https://github.com/ultralytics/assets/releases/download/v8.1.0/yolov8n.pt
