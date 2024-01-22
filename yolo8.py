@@ -22,3 +22,19 @@ model = YOLO('yolov8n-oiv7.pt')
 # Run inference
 model.predict(imgs, save=True)
 
+###
+# Small benchmark
+imgs = [input_image] * 2
+import time
+from statistics import median
+
+print('Benchmarking..')
+timings = []
+for i in range(0, 100):
+  t0 = time.time()
+  results2 = model.predict(imgs, verbose=False)
+  t1 = time.time()
+  timings.append((t1 - t0) / len(imgs))
+  if len(timings) > 10:
+    print(f'{i} inference last {t1 - t0:.4f}, min {min(timings)}, median {median(timings)}')
+

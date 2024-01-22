@@ -12,16 +12,17 @@
 #       See https://github.com/ROCm/ROCm/issues/1743#issuecomment-1149902796
 #
 # Also you need the following groups for ROCM to run properly (as we do not run as root):
-#   --group-add video --group-add ssh --group-add render
+#   --group-add video --group-add _ssh --group-add render
 #
 
 docker run -it --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
   --device=/dev/kfd --device=/dev/dri \
   -e HSA_ENABLE_SDMA=0 \
   -e HSA_OVERRIDE_GFX_VERSION=9.0.0 \
-  --group-add video --group-add ssh --group-add render \
+  -e PYTHONPATH=/opt/rocm-5.7.0/lib/ \
+  --group-add video --group-add _ssh --group-add render \
   --ipc=host --shm-size 8G \
   -v $(pwd):/opt/cwd \
   --user $(id -u):$(id -g) \
-  rocm-pytorch $@
+  rocm-pytorch "$@"
 

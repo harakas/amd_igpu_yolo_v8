@@ -1,5 +1,6 @@
-# ROCm pytorch yolov5 example for AMD integrated GPU
-A simple example on how to run the [ultralytics/yolov5](https://pytorch.org/hub/ultralytics_yolov5/) inference model on the AMD ROCm platform with pytorch.
+# Running YOLO inference on AMD integrated GPUs
+
+This is a simple example on how to run the [ultralytics/yolov5](https://pytorch.org/hub/ultralytics_yolov5/) and other inference models on the AMD ROCm platform with pytorch and also natively with MIGraphiX.
 
 I have an [ASRock 4x4 BOX-5400U](https://www.asrockind.com/en-gb/4X4%20BOX-5400U) mini computer with integrated AMD graphics. The integrated GPU is actually capable of running neural networks/pytorch. This here is an example/description on how to get it working.
 
@@ -7,6 +8,8 @@ Here we:
  * create a Docker image named `rocm-pytorch` that contains the ROCm and pytorch software environment
  * modify command line script `rocm_python` that runs this Docker image inline as a `python` wrapper
  * use this script to run the yolo5.py example script for inference on [wolf.jpg](wolf.jpg)
+ * run the same image on the ultralytics/yolov8 trained using the Google Open Image V7 archive
+ * export the model from torch into AMD migraphics format
 
 ## Build a Docker image
 
@@ -45,6 +48,8 @@ Agent 2
 ```
 
 See https://github.com/ROCm/ROCm/issues/1743#issuecomment-1149902796 for more examples for other GPUs.
+
+Also you need ROCm version `5.7`. The current latest version `6.0.0` does not work (MIOpen fails to load).
 
 ## Run the example script:
 
@@ -106,4 +111,118 @@ Results saved to runs/detect/predict
 This works fine on my hardware (gfx90c):
 
 ![yolov8 inference result](runs/detect/predict/wolf.jpg)
+
+## Deplying for production using MIGraphX
+
+I want to get rid of depencies on pytorch and the ultralytics API-s. Basically I just want to use the model for inference, e.g. get a version suitable for deployment. For this we want to export the model into an interchange format (ONNX) and from there into a MIGraphX binary format:
+
+```
+$ wget https://github.com/ultralytics/assets/releases/download/v8.1.0/yolov8n.pt
+$ ./rocm_python
+Python 3.10.13 (main, Sep 11 2023, 13:44:35) [GCC 11.2.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> from ultralytics import YOLO
+>>> model = YOLO('yolov8n.pt')
+>>> model.export(format="onnx", opset=12, imgsz=[640, 640])
+Ultralytics YOLOv8.1.3 🚀 Python-3.10.13 torch-2.0.1+gita61a294 CPU (AMD Ryzen 3 5400U with Radeon Graphics)
+YOLOv8n summary (fused): 168 layers, 3151904 parameters, 0 gradients, 8.7 GFLOPs
+
+PyTorch: starting from 'yolov8n.pt' with input shape (1, 3, 640, 640) BCHW and output shape(s) (1, 84, 8400) (6.2 MB)
+
+ONNX: starting export with onnx 1.15.0 opset 12...
+========== Diagnostic Run torch.onnx.export version 2.0.1+gita61a294 ===========
+verbose: False, log level: Level.ERROR
+======================= 0 NONE 0 NOTE 0 WARNING 0 ERROR ========================
+
+ONNX: export success ✅ 0.5s, saved as 'yolov8n.onnx' (12.2 MB)
+
+Export complete (2.0s)
+Results saved to /opt/cwd
+Predict:         yolo predict task=detect model=yolov8n.onnx imgsz=640
+Validate:        yolo val task=detect model=yolov8n.onnx imgsz=640 data=coco.yaml
+Visualize:       https://netron.app
+'yolov8n.onnx'
+>>>
+```
+
+We now have yolov8n.onnx. This can now be turned into a MIGraphX file:
+
+```
+$ ./rocm_python -c 'import os; os.system("/opt/rocm/bin/migraphx-driver compile ./yolov8n.onnx --optimize --gpu --enable-offload-copy --binary -o yolov8n.mxr")'
+Compiling ...
+Reading: ./yolov8n.onnx
+```
+
+This file can then be used to evaluate image data:
+
+```python
+# load model
+import migraphx
+model = migraphx.load("yolov8n.mxr")
+
+# load and preprocess image
+from PIL import Image, ImageOps
+import numpy as np
+image = Image.open('wolf.jpg')
+width, height = image.size
+if width > height:
+  scale_x = scale_y = width / 640.0
+  image_resized = image.resize((640, int(round(height / scale_y))), Image.LANCZOS if scale_y > 1 else Image.BICUBIC)
+else:
+  scale_x = scale_y = height / 640.0
+  image_resized = image.resize((int(round(width / scale_x)), 640), Image.LANCZOS if scale_x > 1 else Image.BICUBIC)
+image_resized = ImageOps.pad(image_resized, (640, 640), centering=(0, 0))
+
+# convert image into float nparray in model input format
+np_image = np.asarray(image_resized)
+np_image = (1.0 / 255) * np.stack((np_image[:,:,0], np_image[:,:,1], np_image[:,:,2]), dtype=np.float32)
+np_image = np.expand_dims(np_image, 0)
+
+# run inference
+input_name = next(iter(model.get_parameter_shapes()))
+results = model.run({input_name: np_image})
+result = np.ndarray(shape=results[0].get_shape().lens(), buffer=np.array(results[0].tolist()), dtype=float)
+```
+
+This produces raw output from the model in the shape of `(1, 84, 8400)`. This needs to be postprocessed to yield the detection boxes:
+
+```python
+# Filter boxes
+boxes = []
+confidences = []
+class_ids = []
+
+for i in range(0, result.shape[2]):
+  row = result[0, :, i]
+  scores = row[4:]
+  ids = np.argmax(scores)
+  confidence = scores[ids]
+
+  if confidence > 0.25:
+    cx, cy, w, h = row[0:4]
+    x = int(scale_x * (cx - w / 2))
+    y = int(scale_y * (cy - h / 2))
+    boxes.append([x, y, int(scale_x * w), int(scale_y * h)])
+    confidences.append(float(confidence))
+    class_ids.append(ids)
+
+import cv2
+indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.25, 0.4)
+
+# Print the result
+labels = [line.strip() for line in open('coco-labels.txt')]
+
+for index in indexes:
+  print(boxes[index], confidences[index], labels[class_ids[index]])
+```
+
+The result of this is:
+
+```
+[292, 245, 475, 368] 0.656113862991333 dog
+```
+
+A more detailed code doing this is in [amd.py](amd.py). It also draws the boxes on images, yielding our wolf pup:
+
+[output.jpg](output.jpg)
 
