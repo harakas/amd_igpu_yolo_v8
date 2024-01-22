@@ -40,7 +40,6 @@ model = migraphx.load("yolov8n.mxr")
 #print('get_output_shapes', model.get_output_shapes())
 
 input_name = next(iter(model.get_parameter_shapes()))
-input_argument = migraphx.argument(np_image)
 
 results = model.run({input_name: np_image})
 
