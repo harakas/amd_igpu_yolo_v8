@@ -51,30 +51,44 @@ for i in range(0, N):
 t1 = time.time()
 print('Inference time: %.3f s / %.1f fps' % ((t1 - t0) / N, N / (t1 - t0)))
 
-# Migraphx offers a pointer to memory, use it to avoid memory copy
-addr = ctypes.cast(results[0].data_ptr(), ctypes.POINTER(ctypes.c_float))
-npr = np.ctypeslib.as_array(addr, shape=results[0].get_shape().lens())
-# Alternative in pure python:
-#npr = np.ndarray(shape=npr.get_shape().lens(), buffer=np.array(npr.tolist()), dtype=float)
+if True: # Migraphx offers a pointer to memory, use it to avoid memory copy
+  addr = ctypes.cast(results[0].data_ptr(), ctypes.POINTER(ctypes.c_float))
+  npr = np.ctypeslib.as_array(addr, shape=results[0].get_shape().lens())
+else: # Alternative in pure python:
+  npr = np.ndarray(shape=results[0].get_shape().lens(), buffer=np.array(results[0].tolist()), dtype=float)
 
 # Filter boxes
 boxes = []
 confidences = []
 class_ids = []
 
-for i in range(0, npr.shape[2]):
-  row = npr[0, :, i]
-  scores = row[4:]
-  ids = np.argmax(scores)
-  confidence = scores[ids]
+model_box_count = npr.shape[2]
+model_class_count = npr.shape[1] - 4
 
-  if confidence > 0.25:
-    cx, cy, w, h = row[0:4]
-    x = int(scale_x * (cx - w / 2))
-    y = int(scale_y * (cy - h / 2))
-    boxes.append([x, y, int(scale_x * w), int(scale_y * h)])
-    confidences.append(float(confidence))
-    class_ids.append(ids)
+if True: # fast numpy
+  probs = npr[0, 4:, :]
+  all_ids = np.argmax(probs, axis=0)
+  all_confidences = np.take(probs.T, model_class_count*np.arange(0, model_box_count) + all_ids)
+  all_boxes = npr[0, 0:4, :].T
+  mask = (all_confidences > 0.25)
+  class_ids = all_ids[mask]
+  confidences = all_confidences[mask]
+  boxes = [(int(scale_x * (cx - w / 2)), int(scale_y * (cy - h / 2)), w, h) for cx, cy, w, h in all_boxes[mask]]
+else: # slow, but readable
+  for i in range(0, model_box_count):
+    row = npr[0, :, i]
+    scores = row[4:]
+    ids = np.argmax(scores)
+    #ids = all_ids[i]
+    confidence = scores[ids]
+
+    if confidence > 0.25:
+      cx, cy, w, h = row[0:4]
+      x = int(scale_x * (cx - w / 2))
+      y = int(scale_y * (cy - h / 2))
+      boxes.append([x, y, int(scale_x * w), int(scale_y * h)])
+      confidences.append(float(confidence))
+      class_ids.append(ids)
 
 indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.25, 0.4)
 
