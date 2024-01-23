@@ -151,79 +151,49 @@ Compiling ...
 Reading: ./yolov8n.onnx
 ```
 
-This file can then be used to evaluate image data:
+This produces a file name `yolov8n.mxr` that can be used to evaluate image data:
 
 ```python
-# load model
-import migraphx
-model = migraphx.load("yolov8n.mxr")
-
-# load and preprocess image
-from PIL import Image, ImageOps
-import numpy as np
-image = Image.open('wolf.jpg')
-width, height = image.size
-if width > height:
-  scale_x = scale_y = width / 640.0
-  image_resized = image.resize((640, int(round(height / scale_y))), Image.LANCZOS if scale_y > 1 else Image.BICUBIC)
-else:
-  scale_x = scale_y = height / 640.0
-  image_resized = image.resize((int(round(width / scale_x)), 640), Image.LANCZOS if scale_x > 1 else Image.BICUBIC)
-image_resized = ImageOps.pad(image_resized, (640, 640), centering=(0, 0))
-
-# convert image into float nparray in model input format
-np_image = np.asarray(image_resized)
-np_image = (1.0 / 255) * np.stack((np_image[:,:,0], np_image[:,:,1], np_image[:,:,2]), dtype=np.float32)
-np_image = np.expand_dims(np_image, 0)
-
-# run inference
-input_name = next(iter(model.get_parameter_shapes()))
-results = model.run({input_name: np_image})
-result = np.ndarray(shape=results[0].get_shape().lens(), buffer=np.array(results[0].tolist()), dtype=float)
-```
-
-This produces raw output from the model in the shape of `(1, 84, 8400)`. This needs to be postprocessed to yield the detection boxes:
-
-```python
-# Filter boxes
-boxes = []
-confidences = []
-class_ids = []
-
-for i in range(0, result.shape[2]):
-  row = result[0, :, i]
-  scores = row[4:]
-  ids = np.argmax(scores)
-  confidence = scores[ids]
-
-  if confidence > 0.25:
-    cx, cy, w, h = row[0:4]
-    x = int(scale_x * (cx - w / 2))
-    y = int(scale_y * (cy - h / 2))
-    boxes.append([x, y, int(scale_x * w), int(scale_y * h)])
-    confidences.append(float(confidence))
-    class_ids.append(ids)
-
 import cv2
-indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.25, 0.4)
+import migraphx
+import rocm_yolo_utils
 
-# Print the result
+image_data = rocm_yolo_utils.preprocess("wolf.jpg")
+
 labels = [line.strip() for line in open('coco-labels.txt')]
 
-for index in indexes:
-  print(boxes[index], confidences[index], labels[class_ids[index]])
+model = migraphx.load("yolov8n.mxr")
+input_name = next(iter(model.get_parameter_shapes()))
+results = model.run({input_name: image_data["preprocessed_image"]})
+
+boxes = rocm_yolo_utils.postprocess(image_data, results[0])
+
+for box, class_id, confidence in boxes:
+  print(f'{box[0]:.1f} {box[1]:.1f} {box[0]+box[2]:.1f} {box[1]+box[3]:.1f}: {labels[class_id]} {confidence:.3f}')
+
+cv2.imwrite('output.jpg', rocm_yolo_utils.paint_boxes(image_data['src_image'], boxes, labels))
 ```
 
-The result of this is:
+This results in
 
 ```
-[292, 245, 475, 368] 0.656113862991333 dog
+292.3 245.5 767.7 613.9: dog 0.596
 ```
 
-A more detailed code doing this is in [amd.py](amd.py). It also draws the boxes on images, yielding our wolf pup:
+and illustrated image
 
 ![output.jpg](output.jpg)
 
-The performance I get on the `AMD Ryzen 3 5400U with Radeon Graphics` for yolov8n is about 50fps (0.02 seconds per image).
+Alternatively, we can use [rocm_yolo_utils.py](rocm_yolo_utils.py) directly from command line for the same effect (see `--help` for other arguments):
+
+```
+$ ./rocm_python rocm_yolo_utils.py --model yolov8n.mxr --benchmark wolf.jpg
+Inference time: 0.020 s / 49.7 fps, preprocess 0.021 s, postprocess 0.002 s
+292.3 245.5 767.7 613.9: dog 0.596
+Written "output.jpg"
+```
+
+As you can see the performance I get on my `AMD Ryzen 3 5400U with Radeon Graphics` for yolov8n is about 50fps (0.02 seconds per image).
 
 I hope this example was of help to you. Good luck!
+
