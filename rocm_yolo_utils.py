@@ -91,9 +91,9 @@ def postprocess(preprocessed_data, detector_result, score_threshold = 0.25, nms_
 
 def paint_boxes(src_image, boxes, labels = None):
   image = src_image.copy()
-  font = cv2.FONT_HERSHEY_COMPLEX_SMALL
+  font = cv2.FONT_HERSHEY_DUPLEX
   font_color = (255, 255, 255)
-  border_thickness = 2
+  border_thickness = 3
 
   for box, class_id, confidence in boxes:
     color = (0, 0, 255)
