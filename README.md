@@ -201,7 +201,7 @@ Inference time: 0.020 s / 49.7 fps, preprocess 0.021 s, postprocess 0.002 s
 Written "output.jpg"
 ```
 
-As you can see the performance I get on my `AMD Ryzen 3 5400U with Radeon Graphics` for yolov8n is about 50fps (0.02 seconds per image).
+As you can see the performance I get on my `AMD Ryzen 3 5400U with Radeon Graphics` for 640x640 yolov8n is about 50fps (0.02 seconds per image). It is possible to create a model for smaller images by specifying a different `imgsz` at the model export. For 320x320 yolov8n I get about 140 fps.
 
 I hope this example was of help to you. Good luck!
 
