@@ -158,6 +158,7 @@ import cv2
 import migraphx
 import rocm_yolo_utils
 
+# Load, scale and rearrange image data to be suitable for the model
 image_data = rocm_yolo_utils.preprocess("wolf.jpg")
 
 labels = [line.strip() for line in open("coco-labels.txt")]
@@ -167,10 +168,10 @@ model = migraphx.load("yolov8n.mxr")
 input_name = next(iter(model.get_parameter_shapes()))
 results = model.run({input_name: image_data["preprocessed_image"]})
 
-# Merge and filter resulting boxes from the model output (1 X 84 X 8500 float array)
+# Merge and filter resulting boxes from the model output (`(1, 84, 8400)` float array)
 boxes = rocm_yolo_utils.postprocess(image_data, results[0])
 
-# Print out found boxes
+# Print out the found boxes
 for box, class_id, confidence in boxes:
   print(f"{box[0]:.1f} {box[1]:.1f} {box[0]+box[2]:.1f} {box[1]+box[3]:.1f}: {labels[class_id]} {confidence:.3f}")
 
