@@ -160,18 +160,22 @@ import rocm_yolo_utils
 
 image_data = rocm_yolo_utils.preprocess("wolf.jpg")
 
-labels = [line.strip() for line in open('coco-labels.txt')]
+labels = [line.strip() for line in open("coco-labels.txt")]
 
+# Load model and run inference on the image
 model = migraphx.load("yolov8n.mxr")
 input_name = next(iter(model.get_parameter_shapes()))
 results = model.run({input_name: image_data["preprocessed_image"]})
 
+# Merge and filter resulting boxes from the model output (1 X 84 X 8500 float array)
 boxes = rocm_yolo_utils.postprocess(image_data, results[0])
 
+# Print out found boxes
 for box, class_id, confidence in boxes:
-  print(f'{box[0]:.1f} {box[1]:.1f} {box[0]+box[2]:.1f} {box[1]+box[3]:.1f}: {labels[class_id]} {confidence:.3f}')
+  print(f"{box[0]:.1f} {box[1]:.1f} {box[0]+box[2]:.1f} {box[1]+box[3]:.1f}: {labels[class_id]} {confidence:.3f}")
 
-cv2.imwrite('output.jpg', rocm_yolo_utils.paint_boxes(image_data['src_image'], boxes, labels))
+# Paint the found boxes on the original image and save it as output.jpg
+cv2.imwrite("output.jpg", rocm_yolo_utils.paint_boxes(image_data["src_image"], boxes, labels))
 ```
 
 This results in
