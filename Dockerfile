@@ -7,18 +7,11 @@ FROM rocm/pytorch:rocm5.7_ubuntu22.04_py3.10_pytorch_2.0.1
 RUN apt-get -y update
 RUN apt-get -y upgrade
 
-RUN pip install -U pip
-
-RUN pip install -U ultralytics
-
-RUN pip install -U 'gitpython>=3.1.30'
-RUN pip install -U 'Pillow>=10.0.1'
-RUN pip install -U 'numpy>=1.23.5'
-RUN pip install -U 'scipy>=1.11.4'
-RUN pip install -U 'onnx>=1.12.0'
-RUN pip install -U onnxruntime
-
 RUN apt-get install -y migraphx
+RUN apt-get install -y fonts-freefont-ttf
+
+RUN pip install -U pip
+RUN pip install -U 'ultralytics' 'gitpython>=3.1.30' 'Pillow>=10.0.1' 'numpy>=1.23.5' 'scipy>=1.11.4' 'onnx>=1.12.0' 'onnxruntime'
 
 RUN mkdir /opt/cwd
 
