@@ -43,10 +43,10 @@ def preprocess(src_image, detector_size = 640, keep_aspect_ratio = True):
 
 def postprocess(preprocessed_data, detector_result, score_threshold = 0.25, nms_threshold = 0.4, vectorize = True, avoid_memory_copy = True, ):
   if avoid_memory_copy: # Migraphx offers a pointer to memory, use it to avoid memory copy
-    addr = ctypes.cast(results[0].data_ptr(), ctypes.POINTER(ctypes.c_float))
-    npr = np.ctypeslib.as_array(addr, shape=results[0].get_shape().lens())
+    addr = ctypes.cast(detector_result.data_ptr(), ctypes.POINTER(ctypes.c_float))
+    npr = np.ctypeslib.as_array(addr, shape=detector_result.get_shape().lens())
   else: # Alternative in pure python:
-    npr = np.ndarray(shape=results[0].get_shape().lens(), buffer=np.array(results[0].tolist()), dtype=float)
+    npr = np.ndarray(shape=detector_result.get_shape().lens(), buffer=np.array(detector_result.tolist()), dtype=float)
 
   # Filter boxes
   boxes = []
