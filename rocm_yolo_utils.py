@@ -139,25 +139,27 @@ if __name__ == '__main__':
   except:
     labels = None
 
-  preprocess_t0 = time.time()
-  image_data = preprocess(args.image)
-  preprocess_t1 = time.time()
-
   model = migraphx.load(args.model)
 
   #print('get_parameter_names', model.get_parameter_names())
   #print('get_parameter_shapes', model.get_parameter_shapes())
   #print('get_output_shapes', model.get_output_shapes())
 
-  input_name = next(iter(model.get_parameter_shapes()))
+  model_input_name = model.get_parameter_names()[0];
+  model_input_shape = model.get_parameter_shapes()[model_input_name];
+  model_input_size = model_input_shape.lens()[-1]
 
-  results = model.run({input_name: image_data['preprocessed_image']})
+  preprocess_t0 = time.time()
+  image_data = preprocess(args.image, detector_size=model_input_size)
+  preprocess_t1 = time.time()
+
+  results = model.run({model_input_name: image_data['preprocessed_image']})
 
   if args.benchmark:
     N = 20
     inference_t0 = time.time()
     for i in range(0, N):
-      results = model.run({input_name: image_data['preprocessed_image']})
+      results = model.run({model_input_name: image_data['preprocessed_image']})
     inference_t1 = time.time()
     inference_time = (inference_t1 - inference_t0) / N
 
