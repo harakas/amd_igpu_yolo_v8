@@ -6,9 +6,11 @@ import numpy as np
 import migraphx
 import ctypes
 
+path = 'wolf.jpg'
+
 labels = [line.strip() for line in open('coco-labels.txt')]
 
-image = Image.open('wolf.jpg')
+image = Image.open(path).convert('RGB')
 
 width, height = image.size
 
@@ -27,7 +29,11 @@ else: # scale image to full detection area
   image_resized = image.resize((640, 640), Image.LANCZOS)
 
 # Rearrange image channels, convert to float32 and normalize to [0..1]
-np_image = np.asarray(image_resized)
+if True: # avoid memory copy
+  np_image = np.frombuffer(image_resized.tobytes(), dtype=np.uint8).reshape((640, 640, 3))
+else:
+  np_image = np.asarray(image_resized)
+
 # PIL already uses proper RGB order
 np_image = (1.0 / 255) * np.stack((np_image[:,:,0], np_image[:,:,1], np_image[:,:,2]), dtype=np.float32)
 #np_image = (1.0 / 255) * np.stack((np_image[:,:,2], np_image[:,:,1], np_image[:,:,0]), dtype=np.float32)
