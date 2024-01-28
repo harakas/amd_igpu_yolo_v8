@@ -42,11 +42,16 @@ def preprocess(src_image, detector_size = 640, keep_aspect_ratio = True):
   return {'src_image': image, 'preprocessed_image': np_image, 'scale_x': scale_x, 'scale_y': scale_y}
 
 def postprocess(preprocessed_data, detector_result, score_threshold = 0.25, nms_threshold = 0.4, vectorize = True, avoid_memory_copy = True, ):
-  if avoid_memory_copy: # Migraphx offers a pointer to memory, use it to avoid memory copy
-    addr = ctypes.cast(detector_result.data_ptr(), ctypes.POINTER(ctypes.c_float))
-    npr = np.ctypeslib.as_array(addr, shape=detector_result.get_shape().lens())
-  else: # Alternative in pure python:
-    npr = np.ndarray(shape=detector_result.get_shape().lens(), buffer=np.array(detector_result.tolist()), dtype=float)
+  if isinstance(detector_result, np.ndarray):
+    npr = detector_result
+  elif isinstance(detector_result, migraphx.argument):
+    if avoid_memory_copy: # Migraphx offers a pointer to memory, use it to avoid memory copy
+      addr = ctypes.cast(detector_result.data_ptr(), ctypes.POINTER(ctypes.c_float))
+      npr = np.ctypeslib.as_array(addr, shape=detector_result.get_shape().lens())
+    else: # Alternative in pure python:
+      npr = np.ndarray(shape=detector_result.get_shape().lens(), buffer=np.array(detector_result.tolist()), dtype=float)
+  else:
+    raise ValueError(f'unknown detector_result: {type(detector_result)}')
 
   # Filter boxes
   boxes = []
@@ -62,7 +67,7 @@ def postprocess(preprocessed_data, detector_result, score_threshold = 0.25, nms_
   if vectorize: # fast numpy vectorized
     probs = npr[0, 4:, :]
     all_ids = np.argmax(probs, axis=0)
-    all_confidences = np.take(probs.T, model_class_count*np.arange(0, model_box_count) + all_ids)
+    all_confidences = probs.T[np.arange(model_box_count), all_ids]
     all_boxes = npr[0, 0:4, :].T
     mask = (all_confidences > score_threshold)
     class_ids = all_ids[mask]
@@ -103,7 +108,7 @@ def paint_boxes(src_image, boxes, labels = None):
     cv2.rectangle(image, c0, c1, color=color, thickness=border_thickness)
 
     #ty = y if y - font_size < 0 else y - font_size
-    if labels is None:
+    if labels is None or class_id >= len(labels):
       text = '%d %.3f' % (class_id, confidence)
     else:
       text = '%s %.3f' % (labels[class_id],  confidence)
@@ -168,11 +173,12 @@ if __name__ == '__main__':
   postprocess_t1 = time.time()
 
   if args.benchmark:
-    print('Inference time: %.3f s / %.1f fps, preprocess %.3f s, postprocess %.3f s' % (inference_time, 1 / inference_time, preprocess_t1 - preprocess_t0, postprocess_t1 - postprocess_t0))
+    print('Inference time: %.3f s / %.1f fps, preprocess %.4f s, postprocess %.4f s' % (inference_time, 1 / inference_time, preprocess_t1 - preprocess_t0, postprocess_t1 - postprocess_t0))
 
   if not args.quiet:
     for box, class_id, confidence in boxes:
-      print(f'{box[0]:.1f} {box[1]:.1f} {box[0]+box[2]:.1f} {box[1]+box[3]:.1f}: {class_id if labels is None else labels[class_id]} {confidence:.3f}')
+      label = class_id if labels is None or len(labels) <= class_id else labels[class_id]
+      print(f'{box[0]:.1f} {box[1]:.1f} {box[0]+box[2]:.1f} {box[1]+box[3]:.1f}: {label} {confidence:.3f}')
 
   cv2.imwrite(args.output, paint_boxes(image_data['src_image'], boxes, labels))
 
