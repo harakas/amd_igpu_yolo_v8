@@ -3,6 +3,20 @@ import cv2
 import numpy as np
 import ctypes
 
+def generate_class_aggregation(labels):
+  labels = np.array(labels)
+  unique_labels = np.unique(labels)
+  if len(unique_labels) == len(labels):
+    # nothing to aggregate, so there is no mapping
+    return None
+  ret = []
+  for label in unique_labels:
+    if label == 'other':
+      continue
+    index = np.where(labels == label)[0]
+    ret.append(((label, index[0]), index))
+  return ret
+
 def preprocess(src_image, detector_size = 640, keep_aspect_ratio = True):
   if isinstance(src_image, str):
     image = cv2.imread(src_image, cv2.IMREAD_COLOR)
@@ -41,7 +55,7 @@ def preprocess(src_image, detector_size = 640, keep_aspect_ratio = True):
 
   return {'src_image': image, 'preprocessed_image': np_image, 'scale_x': scale_x, 'scale_y': scale_y}
 
-def postprocess(preprocessed_data, detector_result, score_threshold = 0.25, nms_threshold = 0.4, vectorize = True, avoid_memory_copy = True, ):
+def postprocess(preprocessed_data, detector_result, score_threshold = 0.25, nms_threshold = 0.4, vectorize = True, avoid_memory_copy = True, class_aggregation = None):
   if isinstance(detector_result, np.ndarray):
     npr = detector_result
   elif isinstance(detector_result, migraphx.argument):
@@ -65,16 +79,24 @@ def postprocess(preprocessed_data, detector_result, score_threshold = 0.25, nms_
   scale_y = preprocessed_data['scale_y']
 
   if vectorize: # fast numpy vectorized
-    probs = npr[0, 4:, :]
-    all_ids = np.argmax(probs, axis=0)
-    all_confidences = probs.T[np.arange(model_box_count), all_ids]
+    probs = npr[0, 4:, :].T
+    if class_aggregation is not None:
+      new_probs = np.zeros((probs.shape[0], len(class_aggregation)), dtype=probs.dtype)
+      for index, ((label, class_id), selector) in enumerate(class_aggregation):
+        new_probs[:, index] = np.sum(probs[:, selector], axis=1)
+      probs = new_probs
+    all_ids = np.argmax(probs, axis=1)
+    all_confidences = probs[np.arange(model_box_count), all_ids]
     all_boxes = npr[0, 0:4, :].T
     mask = (all_confidences > score_threshold)
     class_ids = all_ids[mask]
+    if class_aggregation is not None:
+      class_ids = np.array([class_aggregation[index][0][1] for index in class_ids])
     confidences = all_confidences[mask]
     cx, cy, w, h = all_boxes[mask].T
     boxes = np.stack((scale_x * (cx - w / 2), scale_y * (cy - h / 2), scale_x * w, scale_y * h), axis=1)
   else: # slow, but readable
+    assert class_aggregation is None, "not implemented"
     for i in range(0, model_box_count):
       row = npr[0, :, i]
       scores = row[4:]
@@ -139,12 +161,18 @@ if __name__ == '__main__':
   parser.add_argument('--quiet', action='store_true', help='Quiet operation')
   parser.add_argument('--nms-threshold', nargs='?', default=0.4, type=float, help='NMS threshold')
   parser.add_argument('--conserve-cpu', action='store_true', help='Use blocking mode in HIP synchronization conserving CPU')
+  parser.add_argument('--aggregate-labels', action='store_true', help='Aggregate same-named labels in probabilities (discarding "other")')
   args = parser.parse_args();
 
   try:
     labels = [line.strip() for line in open(args.labels)]
   except:
     labels = None
+
+  class_aggregation = None
+  if args.aggregate_labels:
+    assert labels is not None
+    class_aggregation = generate_class_aggregation(labels)
 
   if args.conserve_cpu:
     ctypes.CDLL('/opt/rocm/lib/libamdhip64.so').hipSetDeviceFlags(4)
@@ -180,7 +208,7 @@ if __name__ == '__main__':
     inference_time = median(times)
 
   postprocess_t0 = time.time()
-  boxes = postprocess(image_data, results[0], nms_threshold = args.nms_threshold)
+  boxes = postprocess(image_data, results[0], nms_threshold = args.nms_threshold, class_aggregation = class_aggregation)
   postprocess_t1 = time.time()
 
   if args.benchmark:
