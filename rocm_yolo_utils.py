@@ -137,12 +137,17 @@ if __name__ == '__main__':
   parser.add_argument('--model', nargs='?', default='yolov8n.mxr', type=str, help='MIGraphX model file')
   parser.add_argument('--benchmark', action='store_true', help='Benchmark inference')
   parser.add_argument('--quiet', action='store_true', help='Quiet operation')
+  parser.add_argument('--nms-threshold', nargs='?', default=0.4, type=float, help='NMS threshold')
+  parser.add_argument('--conserve-cpu', action='store_true', help='Use blocking mode in HIP synchronization conserving CPU')
   args = parser.parse_args();
 
   try:
     labels = [line.strip() for line in open(args.labels)]
   except:
     labels = None
+
+  if args.conserve_cpu:
+    ctypes.CDLL('/opt/rocm/lib/libamdhip64.so').hipSetDeviceFlags(4)
 
   model = migraphx.load(args.model)
 
@@ -161,19 +166,25 @@ if __name__ == '__main__':
   results = model.run({model_input_name: image_data['preprocessed_image']})
 
   if args.benchmark:
-    N = 20
+    N = 100
     inference_t0 = time.time()
+    times = []
     for i in range(0, N):
+      t0 = time.time()
       results = model.run({model_input_name: image_data['preprocessed_image']})
+      t1 = time.time()
+      times.append(t1 - t0)
     inference_t1 = time.time()
     inference_time = (inference_t1 - inference_t0) / N
+    from statistics import median
+    inference_time = median(times)
 
   postprocess_t0 = time.time()
-  boxes = postprocess(image_data, results[0])
+  boxes = postprocess(image_data, results[0], nms_threshold = args.nms_threshold)
   postprocess_t1 = time.time()
 
   if args.benchmark:
-    print('Inference time: %.3f s / %.1f fps, preprocess %.4f s, postprocess %.4f s' % (inference_time, 1 / inference_time, preprocess_t1 - preprocess_t0, postprocess_t1 - postprocess_t0))
+    print('Inference time: %.4f s / %.1f fps (median), preprocess %.4f s, postprocess %.4f s' % (inference_time, 1 / inference_time, preprocess_t1 - preprocess_t0, postprocess_t1 - postprocess_t0))
 
   if not args.quiet:
     for box, class_id, confidence in boxes:
